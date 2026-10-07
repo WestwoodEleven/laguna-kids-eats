@@ -197,6 +197,22 @@ summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--sky)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}}
 :root[data-theme="dark"] .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}
 .setbanner{z-index:500}
+
+.hhbox{display:block}
+details.hhbox{border-top:0;padding:8px 10px}
+.hhbox summary{list-style:none;display:grid;gap:2px;cursor:pointer;color:var(--ink);font-weight:400;font-size:14px}
+.hhbox summary::-webkit-details-marker{display:none}
+.hhbox summary small{color:var(--muted)}
+.hmore{font-size:13px;font-weight:700;color:var(--sky)}
+.hmore::after{content:" ▾"}
+details[open].hhbox .hmore::after{content:" ▴"}
+details[open].hhbox .hmore{font-size:0}
+details[open].hhbox .hmore::before{content:"Hide prices";font-size:13px}
+.hsec{display:grid;gap:4px;margin-top:10px}
+.hsec h4{font:500 11px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0}
+.hsec ul.plain{margin:0;padding-left:18px;font-size:14px}
+.hdeal{display:grid;gap:2px;font-size:14px}
+.hdeal .dd{font:500 12px/1.4 var(--f-mono);color:var(--sky)}
 footer{margin-top:28px;color:var(--muted);font-size:13px;display:grid;gap:10px;max-width:65ch}
 footer ul{margin:6px 0 0;padding-left:18px}
 @media (prefers-reduced-motion:no-preference){.chip,select,.btn,.stars button{transition:background .15s,color .15s}}
@@ -399,6 +415,14 @@ function communityHTML(v){
 const STALE_DAYS=90;
 function lastChecked(v){const c=[v.checked,C.confirms[v.id],C.subs[v.id]?.at].filter(Boolean).map(x=>new Date(x.length===10?x+"T12:00:00":x)).filter(d=>!isNaN(d));return c.length?new Date(Math.max(...c)):null}
 const isStale=v=>{const d=lastChecked(v);return !d||(Date.now()-d)/864e5>STALE_DAYS};
+function hhHTML(v){
+  const h=v.hh;if(!h||!h.schedule.length)return "";
+  const sched=h.schedule.map(b=>esc(dayLabel(b.days))+" "+span(b.start,b.end)+(b.note?` <small>(${esc(b.note)})</small>`:"")).join("<br>");
+  const list=(t,a,plain)=>(a&&a.length)?`<div class="hsec"><h4>${t}</h4>${plain?`<ul class="plain">${a.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<ul class="menu">${a.map(itemRow).join("")}</ul>`}</div>`:"";
+  const deals=(h.deals||[]).length?`<div class="hsec"><h4>Daily deals</h4>${h.deals.map(x=>`<div class="hdeal"><b>${esc(x.title||"Deal")}</b> <span class="dd">${esc(dayLabel(x.days))}${x.start?" · "+span(x.start,x.end):""}</span>${x.description?`<div class="cl">${esc(x.description)}</div>`:""}${(x.items||[]).length?`<ul class="menu">${x.items.map(itemRow).join("")}</ul>`:""}</div>`).join("")}</div>`:"";
+  const body=list("Drinks",h.drinks)+list("Food",h.food)+list("Drink specials",h.drink_specials,1)+list("Food specials",h.food_specials,1)+deals+(h.restrictions?`<div class="cl">${esc(h.restrictions)}</div>`:"")+(h.url?`<a class="cl" style="color:var(--sky);font-weight:700" href="${esc(h.url)}" target="_blank" rel="noopener">Restaurant's happy hour menu →</a>`:"");
+  return `<details class="hhbox"><summary><b>Parents' happy hour</b><span>${sched}</span><span class="hmore">${body?"Show drinks &amp; food prices":""}</span></summary>${body||'<div class="cl">No item prices published.</div>'}</details>`;
+}
 function cardHTML(v0){
   const v=eff(v0);
   const from=minMeal(v);
@@ -418,7 +442,7 @@ function cardHTML(v0){
   return `<article class="venue" id="card-${v.id}">
     <div class="vhead"><div><h2>${esc(v.name)}</h2>${distOf(v)!=null?`<span class="dist">${fmtMi(distOf(v))} away</span> `:""}<div class="meta">${esc(v.neighborhood||"Area not confirmed")}${v.address?" · "+esc(String(v.address).replace(/,?\s*Laguna Beach,?\s*CA\s*\d{5}/i,"")):""}${v.category?" · "+esc(v.category):""}${v.address_note?` <small title="${esc(v.address_note)}">(address to confirm)</small>`:""}</div>${ratingsHTML(v)}${lastChecked(v)?`<div class="meta">Last checked ${esc(shortDate(lastChecked(v).toISOString()))}</div>`:""}</div><div class="badges">${badges}</div></div>
     ${(()=>{const os=openState(v);return v._kind==="kids"||v.hours?`<div class="hrs">${os?`<span class="os ${os.open?"on":"off"}">${esc(os.text)}</span>`:`<span class="cl">Hours not listed${v.hours_note?" · "+esc(v.hours_note):""}</span>`}${v.hours?`<details style="border:0;padding:0"><summary>Weekly hours</summary><div class="week">${hoursTable(v.hours)}</div>${v.hours_note?`<div class="cl">${esc(v.hours_note)}</div>`:""}</details>`:""}</div>`:""})()}
-    ${dealHTML}${v.hh&&v.hh.schedule.length?`<div class="hhbox"><b>Parents' happy hour</b><span>${v.hh.schedule.map(b=>esc(dayLabel(b.days))+" "+span(b.start,b.end)).join(" · ")}</span></div>`:""}${tagSummary(v)}${mat}
+    ${dealHTML}${hhHTML(v)}${tagSummary(v)}${mat}
     <div class="links">${links}</div>
     ${(v.sources||[]).length?`<details><summary>How we checked</summary><dl class="verify">
       ${v.last_evidence_date?`<div><dt>Latest evidence</dt><dd>${esc(v.last_evidence_date)}</dd></div>`:""}
