@@ -254,10 +254,10 @@ footer ul{margin:6px 0 0;padding-left:18px}
       <select id="spot" aria-label="Start from a landmark"><option value="">Or start from…</option></select>
       <button class="chip" id="mapToggle" aria-expanded="true">Hide map</button>
     </div>
+    <div class="mstatus" id="mstatus" role="status" aria-live="polite">Tap a pin for the kids menu and directions. "Use my location" sorts the list closest first.</div>
     <div id="mapbody" style="display:grid;gap:8px">
       <div class="mapbox" id="mapbox"><div id="lmap" role="region" aria-label="Map of Laguna Beach restaurants"></div><div class="setbanner" id="setbanner" hidden>Tap where you are on the map.</div></div>
       <div class="legend"><span><i style="background:var(--accent)"></i>Kids deal</span><span><i style="background:var(--sky)"></i>Kids menu</span><span><i style="background:var(--muted)"></i>Not yet known</span><span><i style="background:var(--you)"></i>You</span><span id="mapcount"></span></div>
-      <div class="mstatus" id="mstatus">Tap a pin for the kids menu and directions. "Use my location" sorts the list closest first.</div>
     </div>
   </section>
 
@@ -525,12 +525,21 @@ function initMapControls(){
   sp.onchange=()=>{const l=DATA.map.landmarks.find(x=>x.name===sp.value);if(l)setMe(l.lat,l.lng,l.name,true)};
   document.getElementById("setBtn").onclick=()=>{M.setting=!M.setting;document.getElementById("setBtn").setAttribute("aria-pressed",M.setting);document.getElementById("setbanner").hidden=!M.setting;setMapOpen(true)};
   document.getElementById("locBtn").onclick=()=>{
-    const st=document.getElementById("mstatus");st.className="mstatus";st.textContent="Finding your location…";
-    const fail=err=>{st.className="mstatus err";st.textContent=err&&err.code===1?"Location is turned off for this app. Turn it on in Settings → Privacy & Security → Location Services → Safari Websites, or tap the map to set your spot.":"Couldn't get your location. Try again outdoors, or tap the map to set your spot."};
-    if(!navigator.geolocation)return fail();
-    navigator.geolocation.getCurrentPosition(p=>{const {latitude:lat,longitude:lng}=p.coords;
+    const st=document.getElementById("mstatus"),btn=document.getElementById("locBtn");
+    let done=false;
+    const reset=()=>{done=true;btn.disabled=false;btn.textContent="📍 Use my location"};
+    const fail=err=>{if(done)return;reset();st.className="mstatus err";
+      st.innerHTML=err&&err.code===1
+        ?'Location is blocked for this site. On iPhone: <b>Settings → Privacy &amp; Security → Location Services</b> (on) <b>→ Safari Websites → While Using the App</b>. Also check <b>Settings → Apps → Safari → Location → Ask</b>. Then reload and tap again. Or tap the map to set your spot.'
+        :!navigator.geolocation?"This browser can't share location. Tap the map to set your spot instead."
+        :"Couldn't get your location yet. Make sure Location Services is on, then try again, or tap the map to set your spot.";};
+    if(!navigator.geolocation||!window.isSecureContext)return fail();
+    btn.disabled=true;btn.textContent="Locating…";st.className="mstatus";st.textContent="Finding your location… if Safari asks, tap Allow.";
+    const guard=setTimeout(()=>fail({code:3}),20000);
+    navigator.geolocation.getCurrentPosition(p=>{clearTimeout(guard);if(done)return;reset();const {latitude:lat,longitude:lng}=p.coords;
       setMe(lat,lng,"your location",true);
-      if(lat<33.3||lat>33.75||lng<-118||lng>-117.5)st.textContent="You're outside Laguna Beach, so distances are long. They're straight-line miles."},fail,{enableHighAccuracy:true,timeout:12000,maximumAge:60000});
+      if(lat<33.3||lat>33.75||lng<-118||lng>-117.5)st.textContent="Got your location. You're outside Laguna Beach, so distances are long (straight-line miles)."},
+      err=>{clearTimeout(guard);fail(err)},{enableHighAccuracy:false,timeout:15000,maximumAge:300000});
   };
   try{const s=JSON.parse(localStorage.getItem("lke-me")||"null");if(s&&typeof s.lat==="number")setMe(s.lat,s.lng,s.label||"your saved spot")}catch(e){}
 }
