@@ -1,5 +1,5 @@
 // Offline support: the app shell is cached; data.js is fetched fresh when online (falls back to the cached copy offline).
-const CACHE = "kids-eats-v1";
+const CACHE = "kids-eats-v2";
 const SHELL = ["./", "index.html", "data.js", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
